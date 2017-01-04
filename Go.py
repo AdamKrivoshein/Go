@@ -54,8 +54,16 @@ class stone:
 			
 	def kill(self, i, j, board, turn):		#FIX edge liberties crashing
 		killed = False
-		if i < (len(board) - 1):
-			if board[(i + 1)][j].notSurrounded((i + 1), j, board, turn) == False:
+		if board[(i + 1)][j].groupID == 0:
+			if i < (len(board) - 1):
+				if board[(i + 1)][j].notSurrounded((i + 1), j, board, turn) == False:
+					killed = True
+		else:
+			print("GroupID != 0!!!")
+			if board[board[(i + 1)][j].groupID[0]][board[(i + 1)][j].groupID[1]].notSurrounded((i + 1), j, board, turn) == False:
+				print("Groupd is Dead!")
+				#board[(i + 1)][j].captured((i + 1), j, board)
+				board[board[(i + 1)][j].groupID[0]][board[(i + 1)][j].groupID[1]].captured((i + 1), j, board)
 				killed = True
 		if i > 0:
 			if board[(i - 1)][j].notSurrounded((i - 1), j, board, turn) == False:
@@ -69,6 +77,11 @@ class stone:
 		print("Bacon" + str(killed))
 		return killed
 
+	def captured(self, i, j, board):		#Don't need this anymore
+		print(board[i][j].groupID[0])
+		print(board[i][j].groupID[1])
+		board[board[i][j].groupID[0]][board[i][j].groupID[1]].captured(i, j, board)
+		
 	def seekGroup(self, i, j, x, y, turn, timeline):
 		if board[x][y].state == turn:
 			if board[x][y].groupID == 0:
@@ -110,14 +123,27 @@ class stone:
 					return True
 		elif len(sortedPeers) > 1:
 			board[i][j].groupID = sortedPeers[0]
-			for l in range(len(sortedPeers)):		#Not quite working I think
+			board[sortedPeers[0][0]][sortedPeers[0][1]].members.append([i, j])
+			for l in range(len(sortedPeers)):
 				if l > 0:
 					for m in range(len(board[sortedPeers[l][0]][sortedPeers[l][1]].members)):
 						board[sortedPeers[0][0]][sortedPeers[0][1]].members.append(board[sortedPeers[l][0]][sortedPeers[l][1]].members[m])
-			for n in range(len(sortedPeers)):		#Need to change each group member's groupID to new groupID
-				board[sortedPeers[n][0]][sortedPeers[n][1]] = stone(turn, sortedPeers[n][0], sortedPeers[n][1])
+			for n in range(len(sortedPeers)):		#Sets all other group keystones = to a stone type
+				if n != 0:
+					board[sortedPeers[n][0]][sortedPeers[n][1]] = stone(turn, sortedPeers[n][0], sortedPeers[n][1])
+			for o in range(len(board[sortedPeers[0][0]][sortedPeers[0][1]].members)):		#Sets group ID of all the new group members
+				board[board[sortedPeers[0][0]][sortedPeers[0][1]].members[o][0]][board[sortedPeers[0][0]][sortedPeers[0][1]].members[o][1]].groupID = sortedPeers[0]
+			print("Members" + str(board[sortedPeers[0][0]][sortedPeers[0][1]].members))
 				#board[sortedPeers[0]].members.append each board[sortedPeers].members. Set all but sortedPeers[0] = to regular stone
 				#board[each sortedPeers].members add board.sortedPeers[0] members
+		#if board[i][j - 1].state == turn:
+		#	if board[i][j - 1].groupID == 0:
+		#		board[i][j] = group(turn, timeline, ([i, j], [i, (j - 1)]))	#Need to add check if connects groups		#Need to add liberty check of group
+		#		board[i][j - 1].groupID = timeline
+		#		return True
+		#	else:
+		#		board[i][j] = group(turn, board[i][j - 1].groupID, ([i, j], [i, (j - 1)]))
+		#		return True
 
 	def valid(self, i, j, board, turn, timeline):
 		if board[i][j].state == "Empty":
@@ -153,6 +179,25 @@ class group:
 		self.groupID = groupID
 		self.members = members
 		
+	def valid(self, i, j, board, turn, empty):
+		return False
+	
+	def captured(self, i, j, board):
+		for k in range(len(board[self.groupID[0]][self.groupID[1]].members)):
+			#board[board[self.groupID[0]][self.groupID[1]].members[k][0]][board[self.groupID[0]][self.groupID[1]].members[k][1]].groupID = 0
+			x = self.groupID[0]
+			y = self.groupID[1]
+			print(self.members[k][0])
+			print(self.members[k][1])
+			if self.members[k][0] != self.groupID[0] or self.members[k][1] != self.groupID[1]:
+				board[self.members[k][0]][self.members[k][1]].state = "Empty"
+			if self.members[k][0] != self.groupID[0] or self.members[k][1] != self.groupID[1]:
+				board[self.members[k][0]][self.members[k][1]].groupID = 0
+			#board[board[self.groupID[0]][self.groupID[1]].members[k][0]][board[self.groupID[0]][self.groupID[1]].members[k][1]].state = "Empty"
+			#board[self.groupID[0]][self.groupID[1]] = stone("Empty", i, j)
+			#Need to set group keystone groupID = to 0
+			board[x][y] = stone("Empty", i, j)
+			
 	def addStone(self, stone):
 		self.members.append(stone)
 		
@@ -181,7 +226,11 @@ class group:
 				if add == True:
 					totalLiberties.append(self.libertyList(self.members[i])[j])
 		print(totalLiberties)
-		return True
+		if len(totalLiberties) > 0:
+			return True
+		else:
+			#Kill self
+			return False
 
 	def draw(self, x, y, state, gameDisplay):
 		if state == "Empty":
